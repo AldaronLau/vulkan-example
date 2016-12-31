@@ -88,10 +88,6 @@ int8_t wr_window_event(wr_window_t window, uint32_t* event, float* x, float* y){
 #endif
 }
 
-void wr_window_close(wr_window_t window) {
-	xcb_disconnect(window.connection);
-}
-
 // Vulkan
 
 static inline void wr_vulkan_error(const char *msg, VkResult result) {
@@ -124,7 +120,7 @@ wr_vulkan_t wr_vulkan(const char* title) {
 	return vulkan;
 }
 
-void wr_vulkan_window(wr_vulkan_t* vulkan, wr_window_t window) {
+static inline void wr_vulkan_window(wr_vulkan_t* vulkan, wr_window_t window) {
 	VkXcbSurfaceCreateInfoKHR surface_ci = { 
 		.sType =  VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
 		.connection = window.connection,
@@ -134,7 +130,7 @@ void wr_vulkan_window(wr_vulkan_t* vulkan, wr_window_t window) {
 		vulkan->instance, &surface_ci, NULL, &vulkan->surface));
 }
 
-void wr_vulkan_gpu(wr_vulkan_t* vulkan) {
+static inline void wr_vulkan_gpu(wr_vulkan_t* vulkan) {
 	uint32_t num_gpus = 0;
 	vkEnumeratePhysicalDevices(vulkan->instance, &num_gpus, NULL);
 	VkPhysicalDevice gpus[num_gpus];
@@ -169,7 +165,7 @@ void wr_vulkan_gpu(wr_vulkan_t* vulkan) {
 	vkGetPhysicalDeviceMemoryProperties(vulkan->gpu,&vulkan->gpu_mem_props);
 }
 
-void wr_vulkan_device(wr_vulkan_t* vulkan) {
+static inline void wr_vulkan_device(wr_vulkan_t* vulkan) {
 	float queuePriorities[] = { 1.0f };
 	VkDeviceQueueCreateInfo queue_ci = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -195,12 +191,12 @@ void wr_vulkan_device(wr_vulkan_t* vulkan) {
 		vulkan->gpu, &device_ci, NULL, &vulkan->device));
 }
 
-void wr_vulkan_queue(wr_vulkan_t* vulkan) {
+static inline void wr_vulkan_queue(wr_vulkan_t* vulkan) {
 	vkGetDeviceQueue(vulkan->device, vulkan->present_queue_index, 0,
 		&vulkan->present_queue);
 }
 
-void wr_vulkan_command_buffer(wr_vulkan_t* vulkan) {
+static inline void wr_vulkan_command_buffer(wr_vulkan_t* vulkan) {
 	VkCommandPool commandPool;
 	VkCommandPoolCreateInfo command_pool_ci = {
 		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -220,7 +216,7 @@ void wr_vulkan_command_buffer(wr_vulkan_t* vulkan) {
 			&vulkan->command_buffer));
 }
 
-void wr_vulkan_swapchain(wr_vulkan_t* vulkan) {
+static inline void wr_vulkan_swapchain(wr_vulkan_t* vulkan) {
 	// Find preferred format:
 	uint32_t formatCount = 1;
 	VkSurfaceFormatKHR surface_format;
@@ -286,7 +282,7 @@ void wr_vulkan_swapchain(wr_vulkan_t* vulkan) {
 		&vulkan->image_count, vulkan->present_images);
 }
 
-void wr_vulkan_image_view(wr_vulkan_t* vulkan) {
+static inline void wr_vulkan_image_view(wr_vulkan_t* vulkan) {
 	VkComponentMapping components = {
 		.r = VK_COMPONENT_SWIZZLE_R, .g = VK_COMPONENT_SWIZZLE_G,
 		.b = VK_COMPONENT_SWIZZLE_B, .a = VK_COMPONENT_SWIZZLE_A,
@@ -368,7 +364,7 @@ void wr_vulkan_image_view(wr_vulkan_t* vulkan) {
 	}
 }
 
-void wr_vulkan_depth_buffer(wr_vulkan_t* vulkan) {
+static inline void wr_vulkan_depth_buffer(wr_vulkan_t* vulkan) {
 	VkImageCreateInfo imageCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.imageType = VK_IMAGE_TYPE_2D,
@@ -474,7 +470,7 @@ void wr_vulkan_depth_buffer(wr_vulkan_t* vulkan) {
 		&vulkan->depth_image_view));
 }
 
-void wr_vulkan_render_pass(wr_vulkan_t* vulkan) {
+static inline void wr_vulkan_render_pass(wr_vulkan_t* vulkan) {
 	VkAttachmentDescription passAttachments[2] = {
 		{
 			.format = vulkan->color_format,
@@ -523,7 +519,7 @@ void wr_vulkan_render_pass(wr_vulkan_t* vulkan) {
 		vulkan->device, &render_pass_ci, NULL, &vulkan->render_pass));
 }
 
-void wr_vulkan_framebuffers(wr_vulkan_t* vulkan) {
+static inline void wr_vulkan_framebuffers(wr_vulkan_t* vulkan) {
 	VkImageView frameBufferAttachments[2];
 	frameBufferAttachments[1] = vulkan->depth_image_view;
 
@@ -814,19 +810,7 @@ void wr_vulkan_swapchain_delete(wr_vulkan_t* vulkan) {
 	vkDestroySwapchainKHR(vulkan->device, vulkan->swapchain, NULL);
 }
 
-void wr_vulkan_delete(wr_vulkan_t* vulkan) {
-	wr_vulkan_swapchain_delete(vulkan);
-}
-
-void wr_vulkan_attach(wr_vulkan_t* vulkan, wr_window_t window) {
-	wr_vulkan_window(vulkan, window); // Link Window to Vulkan Instance
-	wr_vulkan_gpu(vulkan); // Link GPU (physical device) to Vulkan Instance
-	wr_vulkan_device(vulkan); // Link Logical Device to Vulkan Instance
-	wr_vulkan_queue(vulkan); // Link Device Queue to Vulkan Instance
-	wr_vulkan_command_buffer(vulkan); // Link Command Buffer to Vulkan Inst
-}
-
-void wr_vulkan_draw_begin(wr_vulkan_t* vulkan) {
+void wr_vulkan_draw_begin(wr_vulkan_t* vulkan, float r, float g, float b) {
 	VkSemaphoreCreateInfo semaphore_ci = {
 		VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0
 	};
@@ -866,7 +850,7 @@ void wr_vulkan_draw_begin(wr_vulkan_t* vulkan) {
 		0, 0, NULL, 0, NULL, 1, &layoutTransitionBarrier);
 
 	// activate render pass:
-	const float CLEAR_COLOR[] = { 0.0f, 1.0f, 0.0f, 1.0f };
+	const float CLEAR_COLOR[] = { r, g, b, 1.0f };
 	VkClearValue clearValue[2];
 	memcpy(clearValue[0].color.float32, CLEAR_COLOR, sizeof(float) * 4);
 	clearValue[1].depthStencil = (VkClearDepthStencilValue) { 1.0, 0 };
@@ -881,10 +865,12 @@ void wr_vulkan_draw_begin(wr_vulkan_t* vulkan) {
 		.clearValueCount = 2,
 		.pClearValues = clearValue,
 	};
-	vkCmdBeginRenderPass(vulkan->command_buffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(vulkan->command_buffer, &renderPassBeginInfo,
+		VK_SUBPASS_CONTENTS_INLINE);
 
 	// bind the graphics pipeline to the command buffer. Any vkDraw command afterwards is affeted by this pipeline!
-	vkCmdBindPipeline(vulkan->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan->pipeline);
+	vkCmdBindPipeline(vulkan->command_buffer,
+		VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan->pipeline);
 
 	// take care of dynamic state:
 	VkViewport viewport = { 0, 0, vulkan->width, vulkan->height, 0, 1 };
@@ -905,7 +891,6 @@ void wr_vulkan_draw_shape(wr_vulkan_t* vulkan, wr_shape_t* shape) {
 
 void wr_vulkan_draw_update(wr_vulkan_t* vulkan,wr_window_t window,uint8_t fps) {
 	vkCmdEndRenderPass(vulkan->command_buffer);
-
 	// change layout back to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 	VkImageMemoryBarrier prePresentBarrier = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -928,17 +913,13 @@ void wr_vulkan_draw_update(wr_vulkan_t* vulkan,wr_window_t window,uint8_t fps) {
 		&prePresentBarrier);
 
 	vkEndCommandBuffer(vulkan->command_buffer);
-
 	// present:
 	VkFence render_fence;
 	VkFenceCreateInfo fenceCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 	};
 	vkCreateFence(vulkan->device, &fenceCreateInfo, NULL, &render_fence);
-
-	VkPipelineStageFlags waitStageMash = {
-		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-	};
+	VkPipelineStageFlags waitStageMash=VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 	VkSubmitInfo submitInfo = {
 		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 		.waitSemaphoreCount = 1,
@@ -950,10 +931,8 @@ void wr_vulkan_draw_update(wr_vulkan_t* vulkan,wr_window_t window,uint8_t fps) {
 		.pSignalSemaphores = &vulkan->rendering_complete_sem,
 	};
 	vkQueueSubmit(vulkan->present_queue, 1, &submitInfo, render_fence);
-
 	vkWaitForFences(vulkan->device, 1, &render_fence, VK_TRUE, UINT64_MAX);
 	vkDestroyFence(vulkan->device, render_fence, NULL);
-
 	VkPresentInfoKHR present_info = {
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 		.pNext = NULL,
@@ -965,8 +944,25 @@ void wr_vulkan_draw_update(wr_vulkan_t* vulkan,wr_window_t window,uint8_t fps) {
 		.pResults = NULL,
 	};
 	vkQueuePresentKHR(vulkan->present_queue, &present_info);
-
 	vkDestroySemaphore(vulkan->device, vulkan->presenting_complete_sem, NULL);
 	vkDestroySemaphore(vulkan->device, vulkan->rendering_complete_sem, NULL);
 	wr_vulkan_draw_on_window(vulkan, window, fps);
+}
+
+void wr_close(wr_t wrapper) {
+	wr_vulkan_swapchain_delete(&wrapper.vulkan);
+	xcb_disconnect(wrapper.window.connection);
+}
+
+wr_t wr_open(const char* title) {
+	wr_t wrapper;
+	wrapper.window = wr_window(title); // Create Window
+	wrapper.vulkan = wr_vulkan(title); // Initialize Vulkan
+	wr_vulkan_window(&wrapper.vulkan, wrapper.window); // Link window to Vk
+	wr_vulkan_gpu(&wrapper.vulkan); // Link GPU to Vulkan Instance
+	wr_vulkan_device(&wrapper.vulkan); // Link Logical Device to Vulkan
+	wr_vulkan_queue(&wrapper.vulkan); // Link Device Queue to Vulkan
+	wr_vulkan_command_buffer(&wrapper.vulkan); // Link CMD Buffer to Vulkan
+	wr_vulkan_resize(&wrapper.vulkan); // Resize
+	return wrapper;
 }
