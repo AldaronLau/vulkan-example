@@ -36,7 +36,7 @@ static void ve_load_shaders(wr_shader_t* shader, wr_vulkan_t vulkan) {
 
 void wrapper_main(void) {
 	context_t context;
-	wr_t wrapper = wr_open(APP_TITLE);
+	wr_t wrapper = wr_open(APP_TITLE, 0);
 
 	float v[] = {
 		-.5f, .5f, 0.f, 1.0f,

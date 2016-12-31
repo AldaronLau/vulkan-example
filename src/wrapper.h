@@ -72,7 +72,8 @@ typedef struct {
 } wr_shader_t;
 
 void wrapper_main(void);
-wr_window_t wr_window(const char*);
+void wr_fullscreen(wr_window_t window);
+wr_window_t wr_window(const char*, int8_t);
 int8_t wr_window_event(wr_window_t window, uint32_t* event, float* x, float* y);
 wr_vulkan_t wr_vulkan(const char*);
 void wr_vulkan_shape(wr_shape_t*, wr_vulkan_t, const float*);
@@ -84,4 +85,4 @@ void wr_vulkan_draw_begin(wr_vulkan_t* vulkan, float r, float g, float b);
 void wr_vulkan_draw_shape(wr_vulkan_t*, wr_shape_t*);
 void wr_vulkan_draw_update(wr_vulkan_t* vulkan,wr_window_t,uint8_t);
 void wr_close(wr_t wrapper);
-wr_t wr_open(const char* title);
+wr_t wr_open(const char* title, int8_t fullscreen);

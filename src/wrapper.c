@@ -21,7 +21,34 @@ int main(int argc, char **argv) {
 
 #endif
 
-wr_window_t wr_window(const char* title) {
+void wr_fullscreen(wr_window_t window) {
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+#elif defined(VK_USE_PLATFORM_WIN32_KHR)
+#else
+	xcb_intern_atom_cookie_t wm_state_ck=xcb_intern_atom(window.connection,
+		0, 13, "_NET_WM_STATE");
+	xcb_intern_atom_cookie_t wm_state_fs_ck = xcb_intern_atom(
+		window.connection, 0, 24, "_NET_WM_STATE_FULLSCREEN");
+	xcb_client_message_event_t ev = {
+		.response_type = XCB_CLIENT_MESSAGE,
+		.type = xcb_intern_atom_reply(window.connection, wm_state_ck, 0)
+			->atom,
+		.format = 32,
+		.window = window.window,
+		.data.data32[0] = 2, // Toggle (1=add,0=remove)
+		.data.data32[1] = xcb_intern_atom_reply(window.connection,
+			wm_state_fs_ck, 0)->atom,
+		.data.data32[2] = XCB_ATOM_NONE,
+		.data.data32[3] = 0,
+		.data.data32[4] = 0,
+	};
+	xcb_send_event(window.connection, 1, window.window,
+		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+		| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY, (const char*)(&ev));
+#endif
+}
+
+wr_window_t wr_window(const char* title, int8_t fullscreen) {
 	wr_window_t window = {
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
 #elif defined(VK_USE_PLATFORM_WIN32_KHR)
@@ -41,7 +68,7 @@ wr_window_t wr_window(const char* title) {
 		|XCB_EVENT_MASK_POINTER_MOTION|XCB_EVENT_MASK_KEY_PRESS
 		|XCB_EVENT_MASK_KEY_RELEASE;
 	xcb_create_window(window.connection, XCB_COPY_FROM_PARENT, window.window,
-		window.screen->root, 0, 0, 800, 600, 0,
+		window.screen->root, 0, 0, 640, 360, 0,
 		XCB_WINDOW_CLASS_INPUT_OUTPUT, window.screen->root_visual,
 		XCB_CW_EVENT_MASK, &event_mask);
 	// change window title:
@@ -56,6 +83,7 @@ wr_window_t wr_window(const char* title) {
 	// Map Window
   	xcb_map_window(window.connection, window.window);
 #endif
+	if(fullscreen) wr_fullscreen(window);
 	return window;
 }
 
@@ -764,7 +792,6 @@ void wr_vulkan_pipeline(wr_vulkan_t* vulkan, wr_shader_t* shaders, uint32_t ns){
 		.basePipelineHandle = NULL,
 		.basePipelineIndex = 0,
 	};
-
 	wr_vulkan_error("Failed to create graphics pipeline.",
 		vkCreateGraphicsPipelines(vulkan->device, VK_NULL_HANDLE, 1,
 		&pipelineCreateInfo, NULL, &vulkan->pipeline));
@@ -954,9 +981,9 @@ void wr_close(wr_t wrapper) {
 	xcb_disconnect(wrapper.window.connection);
 }
 
-wr_t wr_open(const char* title) {
+wr_t wr_open(const char* title, int8_t fullscreen) {
 	wr_t wrapper;
-	wrapper.window = wr_window(title); // Create Window
+	wrapper.window = wr_window(title, fullscreen); // Create Window
 	wrapper.vulkan = wr_vulkan(title); // Initialize Vulkan
 	wr_vulkan_window(&wrapper.vulkan, wrapper.window); // Link window to Vk
 	wr_vulkan_gpu(&wrapper.vulkan); // Link GPU to Vulkan Instance
